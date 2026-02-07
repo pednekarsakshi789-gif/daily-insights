@@ -4,3 +4,65 @@ node_modules/
 .env.local
 build/
 dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+ENV/
+env/
+
+# React/Node
+/frontend/my-app/build/
+/frontend/my-app/.pnp
+/Life-Summarizer-AI/frontend/my-app/build/
+/Life-Summarizer-AI/frontend/my-app/.pnp
+
+# More environment variables
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Data files
+data/journal_entries.csv
+data/secret.key
+Life-Summarizer-AI/data/journal_entries.csv
+Life-Summarizer-AI/backend/data/journal_entries.csv
+
+# Flask
+instance/
+.webassets-cache
+
+# Testing
+.pytest_cache/
+.coverage
+
