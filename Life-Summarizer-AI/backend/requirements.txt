@@ -9,3 +9,6 @@ textblob     # For sentiment analysis logic
 # --- Data Visualization ---
 matplotlib   # For generating emotional trend graphs
 cryptography
+
+Flask
+Flask-CORS
