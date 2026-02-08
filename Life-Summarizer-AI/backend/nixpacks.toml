@@ -1,0 +1,22 @@
+[phases.setup]
+nixPkgs = ["python310"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT"
+```
+
+---
+
+### **Step 3: Verify Your Files**
+
+Make sure you have these files (and ONLY these):
+```
+backend/
+├── app.py
+├── requirements.txt
+├── Procfile
+├── nixpacks.toml
+└── (your other Python files)
