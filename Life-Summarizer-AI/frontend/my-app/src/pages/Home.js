@@ -126,12 +126,7 @@ function Home() {
 
 
   /* ---------- LOAD DATA ---------- */
-  useEffect(() => {
-    if (token) {
-      fetchHistory();
-      getRandomPrompt();
-    }
-  }, [token, getRandomPrompt]);
+ 
 
   /* ---------- ADD PROMPT RESPONSE TO ENTRY ---------- */
   const addPromptResponseToEntry = () => {
