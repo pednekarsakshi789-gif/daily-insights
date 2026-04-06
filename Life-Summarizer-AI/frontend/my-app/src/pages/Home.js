@@ -1,21 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid
-} from "recharts";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 const API_BASE = process.env.REACT_APP_API_URL || "https://daily-insights-4.onrender.com";
+
 function Home() {
   /* ---------- STATE ---------- */
+  const { token, logout } = useContext(AuthContext);
   const [entry, setEntry] = useState("");
   const [promptResponse, setPromptResponse] = useState("");
   const [response, setResponse] = useState(null);
   const [history, setHistory] = useState([]);
-  const [weeklyTrends, setWeeklyTrends] = useState([]);
   const [currentPrompt, setCurrentPrompt] = useState(0);
 
   /* ---------- PROMPTS DATA ---------- */
@@ -33,35 +27,96 @@ function Home() {
 
   /* ---------- API CALLS ---------- */
   const submitEntry = async () => {
+    if (!token) {
+      alert("You must be logged in to capture insights. Please log in.");
+      return;
+    }
+
     if (!entry.trim()) {
       alert("Please write something first.");
       return;
     }
 
-    const res = await fetch(`${API_BASE}/journal`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entry })
-    });
+    try {
+      if (!token || token.split('.').length !== 3) {
+        alert('Authentication token invalid or expired. Please log in again.');
+        logout();
+        return;
+      }
 
-    const data = await res.json();
-    setResponse(data);
-    setEntry("");
-    fetchHistory();
-    fetchWeeklyTrends();
+      const res = await fetch(`${API_BASE}/journal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ entry })
+      });
+
+      if (!res.ok) {
+        let msg = "Unknown error";
+        let lowerError = null;
+        try {
+          const errorData = await res.json();
+          msg =
+            errorData.error ||
+            errorData.message ||
+            (typeof errorData === "object" ? JSON.stringify(errorData) : errorData);
+          lowerError = (errorData.error || "").toLowerCase();
+        } catch (parseErr) {
+          console.warn("Could not parse error response", parseErr);
+        }
+
+        if (lowerError && (lowerError.includes("invalid token") || lowerError.includes("token expired") || lowerError.includes("authorization header missing"))) {
+          alert("Authentication issue: " + msg + "\nPlease login again.");
+          logout();
+        } else {
+          alert("Error saving entry: " + msg);
+        }
+        return;
+      }
+
+      const data = await res.json();
+      setResponse(data);
+      setEntry("");
+      fetchHistory();
+    } catch (error) {
+      console.error("Error submitting entry:", error);
+      alert("Connection error. Please try again.");
+    }
   };
 
   const fetchHistory = async () => {
-    const res = await fetch(`${API_BASE}/history`);
-    const data = await res.json();
-    setHistory(data.reverse());
+    try {
+      const res = await fetch(`${API_BASE}/history`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) {
+        console.error("Error fetching history:", res.status);
+        setHistory([]);
+        return;
+      }
+      
+      const data = await res.json();
+      
+      // Ensure data is an array before calling reverse
+      if (Array.isArray(data)) {
+        setHistory(data.reverse());
+      } else {
+        console.warn("History data is not an array:", data);
+        setHistory([]);
+      }
+    } catch (error) {
+      console.error("Error fetching history:", error);
+      setHistory([]);
+    }
   };
 
-  const fetchWeeklyTrends = async () => {
-    const res = await fetch(`${API_BASE}/weekly-trends`);
-    const data = await res.json();
-    setWeeklyTrends(data);
-  };
+
+
 
   /* ---------- GET RANDOM PROMPT ---------- */
   const getRandomPrompt = useCallback(() => {
@@ -69,25 +124,14 @@ function Home() {
     setCurrentPrompt(randomIndex);
   }, [prompts.length]);
 
-  /* ---------- WEEKLY INSIGHT ---------- */
-  const getWeeklyMoodInsight = () => {
-    if (weeklyTrends.length === 0) return "No data for this week.";
-
-    const avg =
-      weeklyTrends.reduce((sum, d) => sum + d.avg_mood, 0) /
-      weeklyTrends.length;
-
-    if (avg > 0.3) return "Your week was mostly positive 🙂";
-    if (avg < -0.3) return "Your week was mostly challenging 😔";
-    return "Your week was emotionally balanced ⚖️";
-  };
 
   /* ---------- LOAD DATA ---------- */
   useEffect(() => {
-    fetchHistory();
-    fetchWeeklyTrends();
-    getRandomPrompt();
-  }, [getRandomPrompt]);
+    if (token) {
+      fetchHistory();
+      getRandomPrompt();
+    }
+  }, [token, getRandomPrompt]);
 
   /* ---------- ADD PROMPT RESPONSE TO ENTRY ---------- */
   const addPromptResponseToEntry = () => {
@@ -100,18 +144,28 @@ function Home() {
   /* ---------- DELETE HISTORY ---------- */
   const deleteHistory = async () => {
     if (window.confirm("Are you absolutely sure you want to delete ALL journal entries? This action cannot be undone.")) {
-      const res = await fetch(`${API_BASE}/history`, { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) {
-        alert("All Past Entries has been deleted successfully.");
-        setHistory([]);
-        setWeeklyTrends([]);
-        setResponse(null);
-      } else {
-        alert("Error deleting history: " + data.error);
+      try {
+        const res = await fetch(`${API_BASE}/history`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("All Past Entries has been deleted successfully.");
+          setHistory([]);
+          setResponse(null);
+        } else {
+          alert("Error deleting history: " + (data.error || "Unknown error"));
+        }
+      } catch (error) {
+        console.error("Error deleting history:", error);
+        alert("Connection error while deleting history. Please try again.");
       }
     }
   };
+
 
   /* ---------- UI ---------- */
   return (
@@ -184,59 +238,18 @@ function Home() {
             </span>
           </div>
           <p>
-            <strong>Polarity Score:</strong> {response.polarity.toFixed(3)}
+            <strong>Polarity Score:</strong>{" "}
+            {typeof response.polarity === "number" ? response.polarity.toFixed(3) : "N/A"}
           </p>
           <p>
-            <strong>Compression Ratio:</strong> {(response.compression_ratio * 100).toFixed(1)}%
+            <strong>Compression Ratio:</strong>{" "}
+            {typeof response.compression_ratio === "number"
+              ? (response.compression_ratio * 100).toFixed(1) + "%"
+              : "N/A"}
           </p>
         </div>
       )}
 
-      {/* Weekly Mood Insight */}
-      <div className="card">
-        <h2>📊 Weekly Mood Insight</h2>
-        <p style={{ fontSize: "18px", marginBottom: "25px" }}>
-          {getWeeklyMoodInsight()}
-        </p>
-
-        {weeklyTrends.length > 0 && (
-          <div className="chart-container">
-            <LineChart
-              width={800}
-              height={350}
-              data={weeklyTrends}
-              margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-            >
-              <defs>
-                <linearGradient id="colorMood" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ffd700" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#667eea" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
-              <YAxis domain={[-1, 1]} stroke="rgba(255,255,255,0.5)" />
-              <CartesianGrid stroke="rgba(255,255,255,0.1)" />
-              <Tooltip
-                contentStyle={{
-                  background: "rgba(0,0,0,0.8)",
-                  border: "1px solid #ffd700",
-                  borderRadius: "8px",
-                  color: "white"
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="avg_mood"
-                stroke="#ffd700"
-                strokeWidth={3}
-                dot={{ fill: "#667eea", r: 6 }}
-                activeDot={{ r: 8 }}
-                animationDuration={1000}
-              />
-            </LineChart>
-          </div>
-        )}
-      </div>
 
       {/* Past History Section */}
       <div className="history-section">

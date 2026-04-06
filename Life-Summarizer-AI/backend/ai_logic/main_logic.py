@@ -1,6 +1,7 @@
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import os
+import pytz
 
 from metrics import log_metrics
 from preprocess import clean_text
@@ -47,8 +48,10 @@ def process_entry_web(text: str) -> dict:
 
     # 5. Persist data securely
     df = get_journal_df()
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time = datetime.now(ist).strftime('%Y-%m-%d %H:%M:%S')
     new_row = {
-        "date": date.today().isoformat(),
+        "date": current_time,
         "entry": text,
         "summary": summary,
         "polarity": polarity,

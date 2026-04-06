@@ -9,6 +9,9 @@ function ContactUs() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -16,14 +19,28 @@ function ContactUs() {
       ...prev,
       [name]: value
     }));
+    setError(false); // Clear error when user types
   };
 
-  const handleSubmit = (e) => {
+  const buildMailtoLink = () => {
+    const receiverEmail = "amxxnk@gmail.com";
+    const mailtoSubject = encodeURIComponent(formData.subject);
+    const mailtoBody = encodeURIComponent(
+      `Name: ${formData.name}\nFrom: ${formData.email}\n\n${formData.message}`
+    );
+
+    return `mailto:${receiverEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(false);
 
     // Validate form
     if (!formData.name.trim() || !formData.email.trim() || !formData.subject.trim() || !formData.message.trim()) {
       alert("Please fill in all fields.");
+      setLoading(false);
       return;
     }
 
@@ -31,23 +48,52 @@ function ContactUs() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       alert("Please enter a valid email address.");
+      setLoading(false);
       return;
     }
 
-    // Show success message
-    alert(`Thank you, ${formData.name}! We've received your message and will get back to you soon at ${formData.email}.`);
+    // Send via backend API instead of mailto link for reliable delivery
+    try {
+      const response = await fetch("http://localhost:5000/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message
+        })
+      });
 
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      message: ""
-    });
-    setSubmitted(true);
+      const result = await response.json();
 
-    // Hide success message after 3 seconds
-    setTimeout(() => setSubmitted(false), 3000);
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send message");
+      }
+
+      setSubmitted(true);
+      setError(false);
+      setErrorMessage("");
+
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: ""
+      });
+
+      // Hide success message after 3 seconds
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err) {
+      console.error("Contact send failed:", err);
+      setError(true);
+      setErrorMessage(err.message || "Unknown error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,6 +115,12 @@ function ContactUs() {
             </div>
           )}
 
+          {error && (
+            <div className="error-message">
+              ⚠️ Something went wrong: {errorMessage || "Please check your internet connection and try again."}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="name">Full Name *</label>
@@ -80,6 +132,7 @@ function ContactUs() {
                 onChange={handleInputChange}
                 placeholder="Enter your full name"
                 className="form-input"
+                disabled={loading}
               />
             </div>
 
@@ -93,6 +146,7 @@ function ContactUs() {
                 onChange={handleInputChange}
                 placeholder="Enter your email address"
                 className="form-input"
+                disabled={loading}
               />
             </div>
 
@@ -106,6 +160,7 @@ function ContactUs() {
                 onChange={handleInputChange}
                 placeholder="What is this about?"
                 className="form-input"
+                disabled={loading}
               />
             </div>
 
@@ -119,11 +174,12 @@ function ContactUs() {
                 placeholder="Tell us what you think..."
                 className="form-textarea"
                 rows="6"
+                disabled={loading}
               />
             </div>
 
-            <button type="submit" className="btn btn-primary">
-              💬 Send Message
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? "📤 Sending..." : "💬 Send Message"}
             </button>
           </form>
         </div>
@@ -138,6 +194,18 @@ function ContactUs() {
               <div className="contact-details">
                 <h3>Email</h3>
                 <p><a href="mailto:amxxnk@gmail.com">amxxnk@gmail.com</a></p>
+                <p>
+                  <a
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      window.open(buildMailtoLink(), "_blank");
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Send via Email App
+                  </a>
+                </p>
               </div>
             </div>
 
@@ -147,9 +215,8 @@ function ContactUs() {
                 <h3>Social Media</h3>
                 <p>Follow us on social media for updates and tips</p>
                 <div className="social-links">
-                  <a href="#twitter" className="social-link">Twitter</a>
-                  <a href="#facebook" className="social-link">Facebook</a>
-                  <a href="#instagram" className="social-link">Instagram</a>
+                  <a href="https://wa.me/918904877566" target="_blank" rel="noopener noreferrer" className="social-link">WhatsApp</a>
+                  <a href="https://www.instagram.com/dailyinsightsx.ai" target="_blank" rel="noopener noreferrer" className="social-link">Instagram</a>
                 </div>
               </div>
             </div>
@@ -158,7 +225,7 @@ function ContactUs() {
               <div className="contact-icon">🐙</div>
               <div className="contact-details">
                 <h3>GitHub</h3>
-                <p><a href="https://github.com" target="_blank" rel="noopener noreferrer">Visit our GitHub repository</a></p>
+                <p><a href="https://github.com/pednekarsakshi789-gif/Daily-Insights" target="_blank" rel="noopener noreferrer">Visit our GitHub repository</a></p>
               </div>
             </div>
 
